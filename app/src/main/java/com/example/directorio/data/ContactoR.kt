@@ -1,4 +1,5 @@
 package com.example.directorio.data
+
 import androidx.lifecycle.LiveData
 
 class ContactoR(private val contactoD: ContactoD) {

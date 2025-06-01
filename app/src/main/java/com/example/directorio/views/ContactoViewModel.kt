@@ -7,6 +7,12 @@ import kotlinx.coroutines.launch
 
 class ContactoViewModel(private val repository: ContactoR) : ViewModel() {
 
+    /*
+      Este ViewModel es el que se va a usar directamente desde las actividades
+      o fragments para observar datos y hacer acciones como insertar, actualizar
+      o eliminar.
+    */
+
     val todosLosContactos: LiveData<List<Contacto>> = repository.todosLosContactos
 
     fun insertar(contacto: Contacto) = viewModelScope.launch {
@@ -22,8 +28,8 @@ class ContactoViewModel(private val repository: ContactoR) : ViewModel() {
     }
 }
 
-// Factory para crear el ViewModel con parámetros
-class ContactoViewModelFactory(private val repository: ContactoR) : ViewModelProvider.Factory {
+// Factory para crear el ViewModel con parámetros.
+class ContactoViewModelF(private val repository: ContactoR) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ContactoViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
