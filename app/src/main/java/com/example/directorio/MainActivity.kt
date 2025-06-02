@@ -7,9 +7,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -18,7 +20,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import com.example.directorio.data.*
@@ -37,6 +44,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false) //Esto solo es una configuración para fullscreen.
         setContent {
             val navController = rememberNavController()
             val snackbarHostState = remember { SnackbarHostState() }
@@ -106,29 +114,65 @@ fun PantallaPrincipal(
     }
 
     var contactoEliminadoId by remember { mutableStateOf<Int?>(null) }
+
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    title = { Text("Contactos") }
-                )
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Buscar contacto...") },
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Buscar"
-                        )
-                    },
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp) // Alto suficiente para imagen y searchbar
+            ) {
+                // Imagen de fondo.
+                Image(
+                    painter = painterResource(id = R.drawable.contacto_back),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .fillMaxSize()
                 )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            top = WindowInsets.statusBars
+                                .asPaddingValues()
+                                .calculateTopPadding() + 15.dp,
+                            start = 16.dp,
+                            end = 16.dp
+                        )
+                ) {
+                    Text(
+                        text = "Contactos",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+
+                    Spacer(modifier = Modifier.height(65.dp)) //Espaciado para la barra de búsqueda.
+
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Buscar contacto...") },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Buscar"
+                            )
+                        },
+                        colors = TextFieldDefaults.textFieldColors(
+                            containerColor = Color.White.copy(alpha = 0.5f) //Transparencia.
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                            .clip(RoundedCornerShape(20.dp)) //Esquinas redondeadas.
+                    )
+                }
             }
-        },
+        }
+        ,
         floatingActionButton = {
             FloatingActionButton(onClick = onAgregar) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar")
@@ -188,12 +232,12 @@ fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
 
     Card(modifier = Modifier
         .fillMaxWidth()
-        .padding(vertical = 4.dp)) {
+        .padding(vertical = 4.dp)) { //Padding entre contactos.
         Column(modifier = Modifier.padding(12.dp)) {
             Text(text = "${contacto.nombre} ${contacto.apellidoPaterno} ${contacto.apellidoMaterno}")
             Text(text = "📞 ${contacto.telefono}")
             Text(text = "✉️ ${contacto.correo}")
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp)) //Spacer para separar el contenido de los botones.
             Row {
                 Button(onClick = onEdit, modifier = Modifier.weight(1f).padding(end = 4.dp)) {
                     Text("Editar")
