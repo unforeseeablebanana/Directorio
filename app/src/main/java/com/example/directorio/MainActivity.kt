@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -24,7 +25,6 @@ import com.example.directorio.data.*
 import com.example.directorio.views.ContactoViewModel
 import com.example.directorio.views.ContactoViewModelF
 
-@OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
 
     private val viewModel: ContactoViewModel by viewModels {
@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaPrincipal(
     viewModel: ContactoViewModel,
@@ -95,10 +96,39 @@ fun PantallaPrincipal(
     onEditar: (Int) -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
+    var searchQuery by remember { mutableStateOf("") } //Variable para implementar una barra de búsqueda.
     val contactos by viewModel.todosLosContactos.observeAsState(emptyList())
-    var contactoEliminadoId by remember { mutableStateOf<Int?>(null) }
+    val contactosFiltrados = contactos.filter {
+        it.nombre.contains(searchQuery, ignoreCase = true) ||
+                it.apellidoPaterno.contains(searchQuery, ignoreCase = true) ||
+                it.apellidoMaterno.contains(searchQuery, ignoreCase = true) ||
+                it.telefono.contains(searchQuery)
+    }
 
+    var contactoEliminadoId by remember { mutableStateOf<Int?>(null) }
     Scaffold(
+        topBar = {
+            Column {
+                TopAppBar(
+                    title = { Text("Contactos") }
+                )
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Buscar contacto...") },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Buscar"
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAgregar) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar")
@@ -116,7 +146,8 @@ fun PantallaPrincipal(
             .padding(padding)
             .padding(16.dp)) {
 
-            items(contactos, key = { it.id }) { contacto ->
+            //Usamos contactosFiltrados para mostrar los contactos filtrados, en lugar de solo los contactos.
+            items(contactosFiltrados, key = { it.id }) { contacto ->
                 ContactoItem(
                     contacto = contacto,
                     onDelete = {
@@ -135,7 +166,7 @@ fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
 
     if (showDialog) {
-        AlertDialog(
+        AlertDialog( //Dialogo para confirmar el eliminar.
             onDismissRequest = { showDialog = false },
             title = { Text("¿Eliminar contacto?") },
             text = { Text("Esta acción no se puede deshacer.") },
@@ -211,13 +242,19 @@ fun FormularioContacto(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Formulario") },
+                title = {
+                    Text(
+                        if (contactoEditando != null) "Editar contacto"
+                        else "Agregar contacto"
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { onGuardar("Acción cancelada") }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
+
         }
     ) { padding ->
         Column(modifier = Modifier
