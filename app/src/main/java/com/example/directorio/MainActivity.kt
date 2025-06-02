@@ -2,6 +2,9 @@ package com.example.directorio
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.ui.tooling.preview.Preview
+import com.airbnb.lottie.compose.*
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.navigation.navArgument
@@ -44,6 +47,11 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.SwipeToDismiss
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.rememberDismissState
+import androidx.compose.material3.MaterialTheme.colorScheme
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.example.directorio.data.*
 import com.example.directorio.views.ContactoViewModel
@@ -51,6 +59,33 @@ import com.example.directorio.views.ContactoViewModelF
 import coil.compose.rememberAsyncImagePainter
 import java.io.File
 import java.io.FileOutputStream
+
+@Composable
+fun SplashScreen(navController: NavHostController) {
+    val composition by rememberLottieComposition(LottieCompositionSpec.Asset("splash.json"))
+    val progress by animateLottieCompositionAsState(composition)
+
+    LaunchedEffect(true) {
+        delay(2500) // Espera 2.5 segundos antes de ir a la lista (o sea el main)
+        navController.navigate("lista") {
+            popUpTo("splash") { inclusive = true }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF8F71AB)),
+        contentAlignment = Alignment.Center
+    ) {
+        LottieAnimation(
+            composition,
+            progress,
+            modifier = Modifier.size(250.dp)
+        )
+    }
+}
+
 
 class MainActivity : ComponentActivity() {
 
@@ -68,16 +103,32 @@ class MainActivity : ComponentActivity() {
         setContent {
             val navController = rememberNavController()
             val snackbarHostState = remember { SnackbarHostState() }
+            val view = LocalView.current
+            val esquemaColores = lightColorScheme(
+                background = Color(0xFFD5C9DE)
+            )
 
-            MaterialTheme {
+            SideEffect {
+                window.statusBarColor = Color.Transparent.toArgb()
+                WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars = true
+            }
+
+            MaterialTheme (
+                colorScheme = esquemaColores
+            ){
                 Scaffold(
-                    snackbarHost = { SnackbarHost(snackbarHostState) }
+                    snackbarHost = { SnackbarHost(snackbarHostState) },
+                    contentWindowInsets = WindowInsets.systemBars
                 ) { paddingValues ->
                     NavHost(
                         navController = navController,
-                        startDestination = "lista",
+                        startDestination = "splash",
                         modifier = Modifier.padding(paddingValues)
                     ) {
+
+                        composable("splash") {
+                            SplashScreen(navController)
+                        }
 
                         composable("lista") {
                             PantallaPrincipal(
@@ -124,14 +175,14 @@ fun PantallaPrincipal(
     onEditar: (Int) -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
-    var searchQuery by remember { mutableStateOf("") } //Variable para implementar una barra de búsqueda.
+    var searchQuery by remember { mutableStateOf("") }
     val contactos by viewModel.todosLosContactos.observeAsState(emptyList())
     val contactosFiltrados = contactos.filter {
         it.nombre.contains(searchQuery, ignoreCase = true) ||
                 it.apellidoPaterno.contains(searchQuery, ignoreCase = true) ||
                 it.apellidoMaterno.contains(searchQuery, ignoreCase = true) ||
                 it.telefono.contains(searchQuery)
-    }.sortedBy { it.nombre.lowercase() } //Aquí filtramos de varias maneras (alfabeticamente y por búsqueda)
+    }.sortedBy { it.nombre.lowercase() }
 
     var contactoEliminadoId by remember { mutableStateOf<Int?>(null) }
 
@@ -140,24 +191,21 @@ fun PantallaPrincipal(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(250.dp) // Alto suficiente para imagen y searchbar
+                    .height(250.dp)
             ) {
-                // Imagen de fondo.
+                // Fondo.
                 Image(
                     painter = painterResource(id = R.drawable.contacto_back),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
+                    modifier = Modifier.fillMaxSize()
                 )
 
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(
-                            top = WindowInsets.statusBars
-                                .asPaddingValues()
-                                .calculateTopPadding() + 15.dp,
+                            top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 16.dp,
                             start = 16.dp,
                             end = 16.dp
                         )
@@ -168,7 +216,7 @@ fun PantallaPrincipal(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
 
-                    Spacer(modifier = Modifier.height(65.dp)) //Espaciado para la barra de búsqueda.
+                    Spacer(modifier = Modifier.height(50.dp))
 
                     TextField(
                         value = searchQuery,
@@ -176,29 +224,25 @@ fun PantallaPrincipal(
                         placeholder = { Text("Buscar contacto...") },
                         singleLine = true,
                         leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Buscar"
-                            )
+                            Icon(Icons.Default.Search, contentDescription = "Buscar")
                         },
                         colors = TextFieldDefaults.textFieldColors(
-                            containerColor = Color.White.copy(alpha = 0.5f) //Transparencia.
+                            containerColor = Color.White.copy(alpha = 0.5f)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                            .shadow(4.dp) //Sombreado abajo de la searchbar
-                            .clip(RoundedCornerShape(20.dp)) //Esquinas redondeadas.
+                            .shadow(4.dp)
+                            .clip(RoundedCornerShape(20.dp))
                     )
                 }
             }
-        }
-        ,
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAgregar) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar")
             }
-        }
+        },
+        contentWindowInsets = WindowInsets.systemBars
     ) { padding ->
         if (contactoEliminadoId != null) {
             LaunchedEffect(contactoEliminadoId) {
@@ -206,6 +250,7 @@ fun PantallaPrincipal(
                 contactoEliminadoId = null
             }
         }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -213,8 +258,7 @@ fun PantallaPrincipal(
                 .padding(16.dp)
         ) {
             items(contactosFiltrados, key = { it.id }) { contacto ->
-                val dismissState = rememberDismissState() //Swipe.
-
+                val dismissState = rememberDismissState()
                 if (dismissState.isDismissed(DismissDirection.EndToStart)) {
                     LaunchedEffect(contacto.id) {
                         viewModel.eliminar(contacto)
@@ -242,13 +286,12 @@ fun PantallaPrincipal(
                     dismissContent = {
                         ContactoItem(
                             contacto = contacto,
-                            onDelete = {}, // ya se maneja por swipe
+                            onDelete = {},
                             onEdit = { onEditar(contacto.id) }
                         )
                     }
                 )
             }
-
         }
     }
 }
@@ -480,4 +523,3 @@ fun FormularioContacto(
         }
     }
 }
-
