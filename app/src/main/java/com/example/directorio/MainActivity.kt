@@ -1,6 +1,7 @@
 package com.example.directorio
 
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.unit.dp
 import androidx.navigation.navArgument
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -16,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
@@ -39,28 +39,48 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val navController = rememberNavController()
+            val snackbarHostState = remember { SnackbarHostState() }
 
             MaterialTheme {
-                NavHost(navController = navController, startDestination = "lista") {
+                Scaffold(
+                    snackbarHost = { SnackbarHost(snackbarHostState) }
+                ) { paddingValues ->
+                    NavHost(
+                        navController = navController,
+                        startDestination = "lista",
+                        modifier = Modifier.padding(paddingValues)
+                    ) {
 
-                    composable("lista") {
-                        PantallaPrincipal(
-                            viewModel = viewModel,
-                            onAgregar = { navController.navigate("formulario/-1") },
-                            onEditar = { id -> navController.navigate("formulario/$id") }
-                        )
-                    }
+                        composable("lista") {
+                            PantallaPrincipal(
+                                viewModel = viewModel,
+                                onAgregar = { navController.navigate("formulario/-1") },
+                                onEditar = { id -> navController.navigate("formulario/$id") },
+                                snackbarHostState = snackbarHostState
+                            )
+                        }
 
-                    composable(
-                        "formulario/{id}",
-                        arguments = listOf(navArgument("id") { type = NavType.IntType })
-                    ) { backStackEntry ->
-                        val contactoId = backStackEntry.arguments?.getInt("id") ?: -1
-                        FormularioContacto(
-                            contactoId = contactoId,
-                            viewModel = viewModel,
-                            onGuardar = { navController.popBackStack() }
-                        )
+                        composable(
+                            "formulario/{id}",
+                            arguments = listOf(navArgument("id") { type = NavType.IntType })
+                        ) { backStackEntry ->
+                            val contactoId = backStackEntry.arguments?.getInt("id") ?: -1
+                            var snackbarMessage by remember { mutableStateOf<String?>(null) }
+
+                            if (snackbarMessage != null) {
+                                LaunchedEffect(snackbarMessage) {
+                                    navController.popBackStack()
+                                    snackbarHostState.showSnackbar(snackbarMessage!!)
+                                    snackbarMessage = null
+                                }
+                            }
+
+                            FormularioContacto(
+                                contactoId = contactoId,
+                                viewModel = viewModel,
+                                onGuardar = { mensaje -> snackbarMessage = mensaje }
+                            )
+                        }
                     }
                 }
             }
@@ -72,9 +92,11 @@ class MainActivity : ComponentActivity() {
 fun PantallaPrincipal(
     viewModel: ContactoViewModel,
     onAgregar: () -> Unit,
-    onEditar: (Int) -> Unit
+    onEditar: (Int) -> Unit,
+    snackbarHostState: SnackbarHostState
 ) {
     val contactos by viewModel.todosLosContactos.observeAsState(emptyList())
+    var contactoEliminadoId by remember { mutableStateOf<Int?>(null) }
 
     Scaffold(
         floatingActionButton = {
@@ -83,6 +105,12 @@ fun PantallaPrincipal(
             }
         }
     ) { padding ->
+        if (contactoEliminadoId != null) {
+            LaunchedEffect(contactoEliminadoId) {
+                snackbarHostState.showSnackbar("Contacto eliminado")
+                contactoEliminadoId = null
+            }
+        }
         LazyColumn(modifier = Modifier
             .fillMaxSize()
             .padding(padding)
@@ -91,7 +119,10 @@ fun PantallaPrincipal(
             items(contactos, key = { it.id }) { contacto ->
                 ContactoItem(
                     contacto = contacto,
-                    onDelete = { viewModel.eliminar(contacto) },
+                    onDelete = {
+                        viewModel.eliminar(contacto)
+                        contactoEliminadoId = contacto.id
+                    },
                     onEdit = { onEditar(contacto.id) }
                 )
             }
@@ -101,6 +132,29 @@ fun PantallaPrincipal(
 
 @Composable
 fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("¿Eliminar contacto?") },
+            text = { Text("Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDialog = false
+                    onDelete()
+                }) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Card(modifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 4.dp)) {
@@ -113,7 +167,7 @@ fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
                 Button(onClick = onEdit, modifier = Modifier.weight(1f).padding(end = 4.dp)) {
                     Text("Editar")
                 }
-                Button(onClick = onDelete, modifier = Modifier.weight(1f).padding(start = 4.dp)) {
+                Button(onClick = { showDialog = true }, modifier = Modifier.weight(1f).padding(start = 4.dp)) {
                     Text("Eliminar")
                 }
             }
@@ -126,7 +180,7 @@ fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
 fun FormularioContacto(
     contactoId: Int,
     viewModel: ContactoViewModel,
-    onGuardar: () -> Unit
+    onGuardar: (String) -> Unit
 ) {
     var nombre by remember { mutableStateOf("") }
     var paterno by remember { mutableStateOf("") }
@@ -159,7 +213,7 @@ fun FormularioContacto(
             TopAppBar(
                 title = { Text("Formulario") },
                 navigationIcon = {
-                    IconButton(onClick = onGuardar) {
+                    IconButton(onClick = { onGuardar("Acción cancelada") }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
                 }
@@ -216,10 +270,11 @@ fun FormularioContacto(
                         )
                         if (contactoEditando != null) {
                             viewModel.actualizar(nuevo)
+                            onGuardar("Contacto actualizado")
                         } else {
                             viewModel.insertar(nuevo)
+                            onGuardar("Contacto guardado")
                         }
-                        onGuardar()
                     }
                 },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -230,5 +285,4 @@ fun FormularioContacto(
         }
     }
 }
-
 
