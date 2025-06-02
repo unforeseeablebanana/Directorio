@@ -4,6 +4,7 @@ import androidx.lifecycle.*
 import com.example.directorio.data.Contacto
 import com.example.directorio.data.ContactoR
 import kotlinx.coroutines.launch
+import java.io.File
 
 class ContactoViewModel(private val repository: ContactoR) : ViewModel() {
 
@@ -23,9 +24,21 @@ class ContactoViewModel(private val repository: ContactoR) : ViewModel() {
         repository.actualizar(contacto)
     }
 
-    fun eliminar(contacto: Contacto) = viewModelScope.launch {
-        repository.eliminar(contacto)
+    fun eliminar(contacto: Contacto) {
+        viewModelScope.launch {
+            // Borra la imagen guardada en almacenamiento interno.
+            contacto.fotoUri?.let { ruta ->
+                try {
+                    val archivo = File(ruta)
+                    if (archivo.exists()) archivo.delete()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            repository.eliminar(contacto)
+        }
     }
+
 }
 
 // Factory para crear el ViewModel con parámetros.

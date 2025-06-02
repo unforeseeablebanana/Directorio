@@ -1,4 +1,5 @@
 package com.example.directorio.data
+
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -10,5 +11,5 @@ data class Contacto(
     val apellidoMaterno: String,
     val telefono: String,
     val correo: String,
-    val fotoUri: String? = null // ← Nuevo campo opcional para la foto
+    val fotoUri: String? = null
 )

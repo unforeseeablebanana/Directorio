@@ -1,5 +1,6 @@
 package com.example.directorio
 
+import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
@@ -48,6 +49,8 @@ import com.example.directorio.data.*
 import com.example.directorio.views.ContactoViewModel
 import com.example.directorio.views.ContactoViewModelF
 import coil.compose.rememberAsyncImagePainter
+import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
 
@@ -260,8 +263,9 @@ fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
         Row(modifier = Modifier.padding(12.dp)) {
             if (!contacto.fotoUri.isNullOrEmpty()) {
                 Image(
-                    painter = rememberAsyncImagePainter(contacto.fotoUri),
+                    painter = rememberAsyncImagePainter(File(contacto.fotoUri)),
                     contentDescription = null,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
@@ -296,6 +300,22 @@ fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
     }
 }
 
+fun guardarImagenEnInterno(context: Context, uri: Uri): String? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val nombreArchivo = "img_${System.currentTimeMillis()}.jpg"
+        val archivoDestino = File(context.filesDir, nombreArchivo)
+        val outputStream = FileOutputStream(archivoDestino)
+        inputStream?.copyTo(outputStream)
+        inputStream?.close()
+        outputStream.close()
+        archivoDestino.absolutePath // Devuelve la ruta del archivo.
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormularioContacto(
@@ -314,12 +334,16 @@ fun FormularioContacto(
     val context = LocalContext.current
 
     var imagenUri by remember { mutableStateOf<Uri?>(null) }
+    var imagenGuardada by remember { mutableStateOf<String?>(null) }
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        imagenUri = uri
+        uri?.let {
+            imagenUri = it
+            // Guardamos la imagen al almacenamiento interno.
+            imagenGuardada = guardarImagenEnInterno(context, it)
+        }
     }
-
 
     LaunchedEffect(contactoId, listaContactos) {
         if (contactoId != -1 && contactoEditando == null) {
@@ -437,7 +461,7 @@ fun FormularioContacto(
                             apellidoMaterno = materno,
                             telefono = telefono,
                             correo = correo,
-                            fotoUri = imagenUri?.toString() //Campo de la imagen
+                            fotoUri = imagenGuardada ?: contactoEditando?.fotoUri // Usa la ruta interna real si hay nueva imagen, o mantiene la anterior
                         )
                         if (contactoEditando != null) {
                             viewModel.actualizar(nuevo)
