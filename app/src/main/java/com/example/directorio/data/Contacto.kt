@@ -9,5 +9,6 @@ data class Contacto(
     val apellidoPaterno: String,
     val apellidoMaterno: String,
     val telefono: String,
-    val correo: String
+    val correo: String,
+    val fotoUri: String? = null // ← Nuevo campo opcional para la foto
 )

@@ -1,36 +1,53 @@
 package com.example.directorio
 
+import android.net.Uri
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.navigation.navArgument
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavType
+//noinspection UsingMaterialAndMaterial3Libraries
+import androidx.compose.material.DismissDirection
+import androidx.compose.material.DismissValue
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.SwipeToDismiss
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.rememberDismissState
 import androidx.navigation.compose.*
 import com.example.directorio.data.*
 import com.example.directorio.views.ContactoViewModel
 import com.example.directorio.views.ContactoViewModelF
+import coil.compose.rememberAsyncImagePainter
 
 class MainActivity : ComponentActivity() {
 
@@ -96,7 +113,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun PantallaPrincipal(
     viewModel: ContactoViewModel,
@@ -111,7 +128,7 @@ fun PantallaPrincipal(
                 it.apellidoPaterno.contains(searchQuery, ignoreCase = true) ||
                 it.apellidoMaterno.contains(searchQuery, ignoreCase = true) ||
                 it.telefono.contains(searchQuery)
-    }
+    }.sortedBy { it.nombre.lowercase() } //Aquí filtramos de varias maneras (alfabeticamente y por búsqueda)
 
     var contactoEliminadoId by remember { mutableStateOf<Int?>(null) }
 
@@ -167,6 +184,7 @@ fun PantallaPrincipal(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp)
+                            .shadow(4.dp) //Sombreado abajo de la searchbar
                             .clip(RoundedCornerShape(20.dp)) //Esquinas redondeadas.
                     )
                 }
@@ -185,65 +203,93 @@ fun PantallaPrincipal(
                 contactoEliminadoId = null
             }
         }
-        LazyColumn(modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .padding(16.dp)) {
-
-            //Usamos contactosFiltrados para mostrar los contactos filtrados, en lugar de solo los contactos.
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
             items(contactosFiltrados, key = { it.id }) { contacto ->
-                ContactoItem(
-                    contacto = contacto,
-                    onDelete = {
+                val dismissState = rememberDismissState() //Swipe.
+
+                if (dismissState.isDismissed(DismissDirection.EndToStart)) {
+                    LaunchedEffect(contacto.id) {
                         viewModel.eliminar(contacto)
                         contactoEliminadoId = contacto.id
+                    }
+                }
+
+                SwipeToDismiss(
+                    state = dismissState,
+                    background = {
+                        val color = when (dismissState.dismissDirection) {
+                            DismissDirection.StartToEnd, DismissDirection.EndToStart -> Color.Red
+                            null -> Color.Transparent
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(color)
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.White)
+                        }
                     },
-                    onEdit = { onEditar(contacto.id) }
+                    dismissContent = {
+                        ContactoItem(
+                            contacto = contacto,
+                            onDelete = {}, // ya se maneja por swipe
+                            onEdit = { onEditar(contacto.id) }
+                        )
+                    }
                 )
             }
+
         }
     }
 }
 
 @Composable
 fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
-    var showDialog by remember { mutableStateOf(false) }
-
-    if (showDialog) {
-        AlertDialog( //Dialogo para confirmar el eliminar.
-            onDismissRequest = { showDialog = false },
-            title = { Text("¿Eliminar contacto?") },
-            text = { Text("Esta acción no se puede deshacer.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDialog = false
-                    onDelete()
-                }) {
-                    Text("Eliminar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Cancelar")
-                }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Row(modifier = Modifier.padding(12.dp)) {
+            if (!contacto.fotoUri.isNullOrEmpty()) {
+                Image(
+                    painter = rememberAsyncImagePainter(contacto.fotoUri),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape),
+                    tint = Color.Gray
+                )
             }
-        )
-    }
 
-    Card(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 4.dp)) { //Padding entre contactos.
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = "${contacto.nombre} ${contacto.apellidoPaterno} ${contacto.apellidoMaterno}")
-            Text(text = "📞 ${contacto.telefono}")
-            Text(text = "✉️ ${contacto.correo}")
-            Spacer(modifier = Modifier.height(8.dp)) //Spacer para separar el contenido de los botones.
-            Row {
-                Button(onClick = onEdit, modifier = Modifier.weight(1f).padding(end = 4.dp)) {
-                    Text("Editar")
-                }
-                Button(onClick = { showDialog = true }, modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-                    Text("Eliminar")
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "${contacto.nombre} ${contacto.apellidoPaterno} ${contacto.apellidoMaterno}")
+                Text(text = "📞 ${contacto.telefono}")
+                Text(text = "✉️ ${contacto.correo}")
+                Row(modifier = Modifier.padding(top = 8.dp)) {
+                    Button(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f).padding(end = 4.dp)
+                    ) {
+                        Text("Editar")
+                    }
                 }
             }
         }
@@ -263,8 +309,17 @@ fun FormularioContacto(
     var telefono by remember { mutableStateOf("") }
     var correo by remember { mutableStateOf("") }
     var contactoEditando by remember { mutableStateOf<Contacto?>(null) }
-
     val listaContactos by viewModel.todosLosContactos.observeAsState()
+
+    val context = LocalContext.current
+
+    var imagenUri by remember { mutableStateOf<Uri?>(null) }
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imagenUri = uri
+    }
+
 
     LaunchedEffect(contactoId, listaContactos) {
         if (contactoId != -1 && contactoEditando == null) {
@@ -276,6 +331,7 @@ fun FormularioContacto(
                 telefono = it.telefono
                 correo = it.correo
                 contactoEditando = it
+                imagenUri = it.fotoUri?.let { uri -> Uri.parse(uri) }
             }
         }
     }
@@ -304,6 +360,39 @@ fun FormularioContacto(
         Column(modifier = Modifier
             .padding(padding)
             .padding(16.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (imagenUri != null) {
+                    Image(
+                        painter = rememberAsyncImagePainter(imagenUri),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape),
+                        tint = Color.Gray
+                    )
+                }
+            }
+
+            Button(
+                onClick = { launcher.launch("image/*") },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+            ) {
+                Text("Seleccionar foto")
+            }
 
             OutlinedTextField(
                 value = nombre,
@@ -347,7 +436,8 @@ fun FormularioContacto(
                             apellidoPaterno = paterno,
                             apellidoMaterno = materno,
                             telefono = telefono,
-                            correo = correo
+                            correo = correo,
+                            fotoUri = imagenUri?.toString() //Campo de la imagen
                         )
                         if (contactoEditando != null) {
                             viewModel.actualizar(nuevo)
