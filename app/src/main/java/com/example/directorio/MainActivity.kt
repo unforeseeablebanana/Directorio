@@ -265,10 +265,9 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                 Image(
                     painter = painterResource(id = slide.image),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier
-                        .size(240.dp)
-                        .clip(CircleShape)
+                        .size(220.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
