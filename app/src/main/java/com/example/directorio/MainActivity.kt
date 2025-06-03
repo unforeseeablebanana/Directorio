@@ -2,6 +2,7 @@ package com.example.directorio
 
 //noinspection UsingMaterialAndMaterial3Libraries
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,6 +15,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -464,6 +466,8 @@ fun PantallaPrincipal(
 
 @Composable
 fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -494,12 +498,35 @@ fun ContactoItem(contacto: Contacto, onDelete: () -> Unit, onEdit: () -> Unit) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = "${contacto.nombre} ${contacto.apellidoPaterno} ${contacto.apellidoMaterno}")
-                Text(text = "📞 ${contacto.telefono}")
-                Text(text = "✉️ ${contacto.correo}")
+
+                Text(
+                    text = "📞 ${contacto.telefono}",
+                    modifier = Modifier.clickable {
+                        val intent = Intent(Intent.ACTION_DIAL).apply {
+                            data = Uri.parse("tel:${contacto.telefono}")
+                        }
+                        context.startActivity(intent)
+                    },
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "✉️ ${contacto.correo}",
+                    modifier = Modifier.clickable {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:${contacto.correo}")
+                        }
+                        context.startActivity(intent)
+                    },
+                    color = MaterialTheme.colorScheme.primary
+                )
+
                 Row(modifier = Modifier.padding(top = 8.dp)) {
                     Button(
                         onClick = onEdit,
-                        modifier = Modifier.weight(1f).padding(end = 4.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 4.dp)
                     ) {
                         Text("Editar")
                     }
