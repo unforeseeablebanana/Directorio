@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -79,6 +80,7 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             val snackbarHostState = remember { SnackbarHostState() }
             val view = LocalView.current
+            val context = LocalContext.current
 
             val esquemaColores = lightColorScheme(
                 background = Color(0xFFD5C9DE),
@@ -91,20 +93,32 @@ class MainActivity : ComponentActivity() {
             }
 
             MaterialTheme(colorScheme = esquemaColores) {
+                val prefs = remember { context.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
+                val startDestination = if (prefs.getBoolean("onboardingShown", false)) "splash" else "splash"
+
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     contentWindowInsets = WindowInsets.systemBars
                 ) { paddingValues ->
+
                     NavHost(
                         navController = navController,
-                        startDestination = "splash",
+                        startDestination = startDestination,
                         modifier = Modifier.padding(paddingValues)
                     ) {
 
                         composable("splash") {
                             SplashScreen(onFinish = {
-                                navController.navigate("onboarding") {
-                                    popUpTo("splash") { inclusive = true }
+                                val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+                                val alreadyShown = prefs.getBoolean("onboardingShown", false)
+                                if (alreadyShown) {
+                                    navController.navigate("lista") {
+                                        popUpTo("splash") { inclusive = true }
+                                    }
+                                } else {
+                                    navController.navigate("onboarding") {
+                                        popUpTo("splash") { inclusive = true }
+                                    }
                                 }
                             })
                         }
@@ -154,10 +168,18 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 @Composable
 fun SplashScreen(onFinish: () -> Unit) {
     val composition by rememberLottieComposition(LottieCompositionSpec.Asset("splash.json"))
     var isAnimationDone by remember { mutableStateOf(false) }
+    var startFadeOut by remember { mutableStateOf(false) }
+    val alpha by animateFloatAsState(
+        targetValue = if (startFadeOut) 0f else 1f,
+        animationSpec = tween(durationMillis = 500),
+        label = "SplashAlpha"
+    )
+
     val progress by animateLottieCompositionAsState(
         composition = composition,
         iterations = 1,
@@ -168,6 +190,8 @@ fun SplashScreen(onFinish: () -> Unit) {
     LaunchedEffect(progress) {
         if (progress >= 1f && !isAnimationDone) {
             isAnimationDone = true
+            startFadeOut = true
+            kotlinx.coroutines.delay(500)
             onFinish()
         }
     }
@@ -175,7 +199,7 @@ fun SplashScreen(onFinish: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF856C94)),
+            .background(Color(0xFFD5C9DE)),
         contentAlignment = Alignment.Center
     ) {
         LottieAnimation(
@@ -255,7 +279,20 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                 )
                 if (page == slides.lastIndex) {
                     Spacer(modifier = Modifier.height(32.dp))
-                    Button(onClick = onFinish) {
+                    val context = LocalContext.current
+                    val scale by remember { mutableStateOf(1f) }
+                    val animatedScale by animateFloatAsState(targetValue = scale, animationSpec = tween(300), label = "ButtonScale")
+
+                    Button(
+                        onClick = {
+                            context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+                                .edit()
+                                .putBoolean("onboardingShown", true)
+                                .apply()
+                            onFinish()
+                        },
+                        modifier = Modifier.scale(animatedScale)
+                    ) {
                         Text("Comenzar")
                     }
                 }
