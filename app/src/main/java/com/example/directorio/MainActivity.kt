@@ -1,91 +1,65 @@
 package com.example.directorio
 
+//noinspection UsingMaterialAndMaterial3Libraries
 import android.content.Context
 import android.net.Uri
-import androidx.compose.ui.tooling.preview.Preview
-import com.airbnb.lottie.compose.*
-import kotlinx.coroutines.delay
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.unit.dp
-import androidx.navigation.navArgument
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.core.view.WindowCompat
-import androidx.navigation.NavType
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.DismissDirection
-import androidx.compose.material.DismissValue
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.SwipeToDismiss
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.rememberDismissState
-import androidx.compose.material3.MaterialTheme.colorScheme
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import androidx.navigation.navArgument
+import coil.compose.rememberAsyncImagePainter
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.directorio.data.*
 import com.example.directorio.views.ContactoViewModel
 import com.example.directorio.views.ContactoViewModelF
-import coil.compose.rememberAsyncImagePainter
 import java.io.File
 import java.io.FileOutputStream
-
-@Composable
-fun SplashScreen(navController: NavHostController) {
-    val composition by rememberLottieComposition(LottieCompositionSpec.Asset("splash.json"))
-    val progress by animateLottieCompositionAsState(composition)
-
-    LaunchedEffect(true) {
-        delay(2500) // Espera 2.5 segundos antes de ir a la lista (o sea el main)
-        navController.navigate("lista") {
-            popUpTo("splash") { inclusive = true }
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF8F71AB)),
-        contentAlignment = Alignment.Center
-    ) {
-        LottieAnimation(
-            composition,
-            progress,
-            modifier = Modifier.size(250.dp)
-        )
-    }
-}
-
 
 class MainActivity : ComponentActivity() {
 
@@ -99,13 +73,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false) //Esto solo es una configuración para fullscreen.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         setContent {
             val navController = rememberNavController()
             val snackbarHostState = remember { SnackbarHostState() }
             val view = LocalView.current
+
             val esquemaColores = lightColorScheme(
-                background = Color(0xFFD5C9DE)
+                background = Color(0xFFD5C9DE),
+                surface = Color(0xFFD5C9DE)
             )
 
             SideEffect {
@@ -113,9 +90,7 @@ class MainActivity : ComponentActivity() {
                 WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars = true
             }
 
-            MaterialTheme (
-                colorScheme = esquemaColores
-            ){
+            MaterialTheme(colorScheme = esquemaColores) {
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     contentWindowInsets = WindowInsets.systemBars
@@ -127,7 +102,19 @@ class MainActivity : ComponentActivity() {
                     ) {
 
                         composable("splash") {
-                            SplashScreen(navController)
+                            SplashScreen(onFinish = {
+                                navController.navigate("onboarding") {
+                                    popUpTo("splash") { inclusive = true }
+                                }
+                            })
+                        }
+
+                        composable("onboarding") {
+                            OnboardingScreen {
+                                navController.navigate("lista") {
+                                    popUpTo("onboarding") { inclusive = true }
+                                }
+                            }
                         }
 
                         composable("lista") {
@@ -140,7 +127,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(
-                            "formulario/{id}",
+                            route = "formulario/{id}",
                             arguments = listOf(navArgument("id") { type = NavType.IntType })
                         ) { backStackEntry ->
                             val contactoId = backStackEntry.arguments?.getInt("id") ?: -1
@@ -166,6 +153,144 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+@Composable
+fun SplashScreen(onFinish: () -> Unit) {
+    val composition by rememberLottieComposition(LottieCompositionSpec.Asset("splash.json"))
+    var isAnimationDone by remember { mutableStateOf(false) }
+    val progress by animateLottieCompositionAsState(
+        composition = composition,
+        iterations = 1,
+        speed = 1.5f,
+        restartOnPlay = false
+    )
+
+    LaunchedEffect(progress) {
+        if (progress >= 1f && !isAnimationDone) {
+            isAnimationDone = true
+            onFinish()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF856C94)),
+        contentAlignment = Alignment.Center
+    ) {
+        LottieAnimation(
+            composition = composition,
+            progress = { progress },
+            modifier = Modifier.size(300.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun OnboardingScreen(onFinish: () -> Unit) {
+    val pagerState = rememberPagerState(pageCount = { 3 })
+
+    val slides = listOf(
+        OnboardingSlide(
+            title = "Bienvenido a\nDirectorio Telefónico",
+            text = "Gestiona tus contactos de forma rápida y sencilla.",
+            image = R.drawable.ic_onboarding_1
+        ),
+        OnboardingSlide(
+            title = "Busca y Filtra",
+            text = "Encuentra contactos rápidamente con nuestro buscador.",
+            image = R.drawable.ic_onboarding_2
+        ),
+        OnboardingSlide(
+            title = "Agrega Fotos",
+            text = "Personaliza tus contactos con fotos.",
+            image = R.drawable.ic_onboarding_3
+        )
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFEDE7F6))
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
+            val slide = slides[page]
+            val animatedAlpha by animateFloatAsState(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 600),
+                label = "AlphaAnimation"
+            )
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(animatedAlpha)
+            ) {
+                Text(
+                    text = slide.title,
+                    style = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                Image(
+                    painter = painterResource(id = slide.image),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(240.dp)
+                        .clip(CircleShape)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = slide.text,
+                    style = TextStyle(fontSize = 18.sp),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                if (page == slides.lastIndex) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(onClick = onFinish) {
+                        Text("Comenzar")
+                    }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(slides.size) { index ->
+                val color = if (pagerState.currentPage == index)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .padding(horizontal = 4.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                )
+            }
+        }
+    }
+}
+
+data class OnboardingSlide(
+    val title: String,
+    val text: String,
+    val image: Int
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -193,7 +318,7 @@ fun PantallaPrincipal(
                     .fillMaxWidth()
                     .height(250.dp)
             ) {
-                // Fondo.
+                // Fondo
                 Image(
                     painter = painterResource(id = R.drawable.contacto_back),
                     contentDescription = null,
@@ -258,32 +383,37 @@ fun PantallaPrincipal(
                 .padding(16.dp)
         ) {
             items(contactosFiltrados, key = { it.id }) { contacto ->
-                val dismissState = rememberDismissState()
-                if (dismissState.isDismissed(DismissDirection.EndToStart)) {
-                    LaunchedEffect(contacto.id) {
-                        viewModel.eliminar(contacto)
-                        contactoEliminadoId = contacto.id
-                    }
-                }
-
-                SwipeToDismiss(
-                    state = dismissState,
-                    background = {
-                        val color = when (dismissState.dismissDirection) {
-                            DismissDirection.StartToEnd, DismissDirection.EndToStart -> Color.Red
-                            null -> Color.Transparent
+                val dismissState = rememberSwipeToDismissBoxState(
+                    positionalThreshold = { 150f },
+                    confirmValueChange = {
+                        if (it == SwipeToDismissBoxValue.EndToStart) {
+                            viewModel.eliminar(contacto)
+                            contactoEliminadoId = contacto.id
                         }
+                        true
+                    }
+                )
+
+                SwipeToDismissBox(
+                    state = dismissState,
+                    backgroundContent = {
+                        val color = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                            Color.Red
+                        } else {
+                            Color.Transparent
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(color)
                                 .padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.CenterStart
+                            contentAlignment = Alignment.CenterEnd
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.White)
                         }
                     },
-                    dismissContent = {
+                    content = {
                         ContactoItem(
                             contacto = contacto,
                             onDelete = {},
@@ -352,7 +482,7 @@ fun guardarImagenEnInterno(context: Context, uri: Uri): String? {
         inputStream?.copyTo(outputStream)
         inputStream?.close()
         outputStream.close()
-        archivoDestino.absolutePath // Devuelve la ruta del archivo.
+        archivoDestino.absolutePath
     } catch (e: Exception) {
         e.printStackTrace()
         null
@@ -383,7 +513,6 @@ fun FormularioContacto(
     ) { uri: Uri? ->
         uri?.let {
             imagenUri = it
-            // Guardamos la imagen al almacenamiento interno.
             imagenGuardada = guardarImagenEnInterno(context, it)
         }
     }
@@ -421,12 +550,13 @@ fun FormularioContacto(
                     }
                 }
             )
-
         }
     ) { padding ->
-        Column(modifier = Modifier
-            .padding(padding)
-            .padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .padding(16.dp)
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -456,7 +586,9 @@ fun FormularioContacto(
 
             Button(
                 onClick = { launcher.launch("image/*") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
             ) {
                 Text("Seleccionar foto")
             }
@@ -465,32 +597,42 @@ fun FormularioContacto(
                 value = nombre,
                 onValueChange = { nombre = it },
                 label = { Text("Nombre") },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
             )
             OutlinedTextField(
                 value = paterno,
                 onValueChange = { paterno = it },
                 label = { Text("Apellido paterno") },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
             )
             OutlinedTextField(
                 value = materno,
                 onValueChange = { materno = it },
                 label = { Text("Apellido materno") },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
             )
             OutlinedTextField(
                 value = telefono,
                 onValueChange = { telefono = it },
                 label = { Text("Teléfono") },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
             )
             OutlinedTextField(
                 value = correo,
                 onValueChange = { correo = it },
                 label = { Text("Correo electrónico") },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
             )
 
@@ -504,7 +646,7 @@ fun FormularioContacto(
                             apellidoMaterno = materno,
                             telefono = telefono,
                             correo = correo,
-                            fotoUri = imagenGuardada ?: contactoEditando?.fotoUri // Usa la ruta interna real si hay nueva imagen, o mantiene la anterior
+                            fotoUri = imagenGuardada ?: contactoEditando?.fotoUri
                         )
                         if (contactoEditando != null) {
                             viewModel.actualizar(nuevo)
@@ -515,10 +657,15 @@ fun FormularioContacto(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
                 enabled = correoValido && telefonoValido
             ) {
-                Text(if (contactoEditando != null) "Actualizar contacto" else "Guardar contacto")
+                Text(
+                    if (contactoEditando != null) "Actualizar contacto"
+                    else "Guardar contacto"
+                )
             }
         }
     }

@@ -34,7 +34,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
+        kotlinCompilerExtensionVersion = "1.5.13"
     }
 
     compileOptions {
@@ -82,5 +82,6 @@ dependencies {
     //Lottie
     implementation("com.airbnb.android:lottie-compose:6.1.0")
 
+    implementation ("androidx.compose.foundation:foundation:1.6.1")
 
 }
