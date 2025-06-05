@@ -330,7 +330,7 @@ data class OnboardingSlide(
     val image: Int
 )
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaPrincipal(
     viewModel: ContactoViewModel,
@@ -407,6 +407,7 @@ fun PantallaPrincipal(
         },
         contentWindowInsets = WindowInsets.systemBars
     ) { padding ->
+
         if (contactoEliminadoId != null) {
             LaunchedEffect(contactoEliminadoId) {
                 snackbarHostState.showSnackbar("Contacto eliminado")
@@ -423,19 +424,23 @@ fun PantallaPrincipal(
             items(contactosFiltrados, key = { it.id }) { contacto ->
                 val dismissState = rememberSwipeToDismissBoxState(
                     positionalThreshold = { 150f },
-                    confirmValueChange = {
-                        if (it == SwipeToDismissBoxValue.EndToStart) {
-                            viewModel.eliminar(contacto)
-                            contactoEliminadoId = contacto.id
+                    confirmValueChange = { newValue ->
+                        when (newValue) {
+                            SwipeToDismissBoxValue.StartToEnd -> {
+                                viewModel.eliminar(contacto)
+                                contactoEliminadoId = contacto.id
+                                true
+                            }
+                            SwipeToDismissBoxValue.EndToStart -> false
+                            else -> true
                         }
-                        true
                     }
                 )
 
                 SwipeToDismissBox(
                     state = dismissState,
                     backgroundContent = {
-                        val color = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                        val color = if (dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd) {
                             Color.Red
                         } else {
                             Color.Transparent
@@ -446,9 +451,11 @@ fun PantallaPrincipal(
                                 .fillMaxSize()
                                 .background(color)
                                 .padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.CenterEnd
+                            contentAlignment = Alignment.CenterStart
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.White)
+                            if (dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd) {
+                                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.White)
+                            }
                         }
                     },
                     content = {
